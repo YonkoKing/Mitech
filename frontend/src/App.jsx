@@ -6,6 +6,8 @@ const API_URL = import.meta.env.VITE_API_URL || "";
 function App() {
   const [products, setProducts] = useState([]);
   const [stats, setStats] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchBy, setSearchBy] = useState("lot");
 
   const [form, setForm] = useState({
     ref: "",
@@ -99,6 +101,12 @@ function App() {
     return cls;
   };
 
+  const filteredProducts = products.filter(p => {
+    if (!searchQuery) return true;
+    const value = String(p[searchBy] || "").toLowerCase();
+    return value.includes(searchQuery.toLowerCase());
+  });
+
   return (
     <div className="dashboard-container">
       
@@ -156,11 +164,35 @@ function App() {
 
 
       {/* PRODUCTS LIST */}
-      <h2 className="section-title">
-        <span>📋</span> Inventaire Actuel
-      </h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+        <h2 className="section-title" style={{ margin: 0 }}>
+          <span>📋</span> Inventaire Actuel
+        </h2>
+        
+        <div style={{ display: 'flex', gap: '0.5rem', flex: '1', minWidth: '300px', maxWidth: '500px', marginLeft: 'auto' }}>
+          <select 
+            className="input-field" 
+            style={{ width: '130px', margin: 0 }} 
+            value={searchBy} 
+            onChange={(e) => setSearchBy(e.target.value)}
+          >
+            <option value="lot">Par LOT</option>
+            <option value="ref">Par Réf</option>
+            <option value="quantity">Par Qté</option>
+            <option value="emplacementCode">Par Empl.</option>
+          </select>
+          <input 
+            type="text" 
+            className="input-field" 
+            placeholder={`Rechercher...`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ flex: 1, margin: 0 }}
+          />
+        </div>
+      </div>
 
-      {products.length === 0 ? (
+      {filteredProducts.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📭</div>
           <h3>Aucun matériel trouvé</h3>
@@ -168,7 +200,7 @@ function App() {
         </div>
       ) : (
         <div className="products-grid">
-          {products.map(p => {
+          {filteredProducts.map(p => {
             const isBelowRop = p.quantity <= p.rop;
             return (
               <div key={p.id} className="product-card" style={{ borderColor: isBelowRop ? 'var(--danger-color)' : '' }}>
