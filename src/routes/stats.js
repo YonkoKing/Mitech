@@ -4,38 +4,43 @@ const db = require("../db");
 const router = express.Router();
 
 // 📊 GENERAL STATS
-router.get("/", (req, res) => {
-  const totalProducts = db.prepare(`
-    SELECT COUNT(*) as count FROM products
-  `).get();
+router.get("/", async (req, res) => {
+  try {
+    const totalProducts = await db.query(`
+      SELECT COUNT(*) as count FROM products
+    `);
 
-  // Low stock is now based on ROP
-  const belowRop = db.prepare(`
-    SELECT COUNT(*) as count
-    FROM products
-    WHERE quantity <= rop
-  `).get();
+    // Low stock is now based on ROP
+    const belowRop = await db.query(`
+      SELECT COUNT(*) as count
+      FROM products
+      WHERE quantity <= rop
+    `);
 
-  // Capacity breakdown per zone type
-  const capacities = db.prepare(`
-    SELECT 
-      zoneType,
-      SUM(capacity) as totalCapacity,
-      SUM(occupancy) as totalOccupancy
-    FROM emplacements
-    GROUP BY zoneType
-  `).all();
+    // Capacity breakdown per zone type
+    const capacities = await db.query(`
+      SELECT 
+        "zoneType",
+        SUM(capacity) as "totalCapacity",
+        SUM(occupancy) as "totalOccupancy"
+      FROM emplacements
+      GROUP BY "zoneType"
+    `);
 
-  const totalEmplacements = db.prepare(`
-    SELECT COUNT(*) as count FROM emplacements
-  `).get();
+    const totalEmplacements = await db.query(`
+      SELECT COUNT(*) as count FROM emplacements
+    `);
 
-  res.json({
-    totalProducts: totalProducts.count,
-    belowRop: belowRop.count,
-    totalEmplacements: totalEmplacements.count,
-    capacities: capacities
-  });
+    res.json({
+      totalProducts: parseInt(totalProducts.rows[0].count, 10),
+      belowRop: parseInt(belowRop.rows[0].count, 10),
+      totalEmplacements: parseInt(totalEmplacements.rows[0].count, 10),
+      capacities: capacities.rows
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 module.exports = router;

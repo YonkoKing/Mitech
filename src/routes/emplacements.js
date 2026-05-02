@@ -6,44 +6,50 @@ const router = express.Router();
 //
 // 📍 GET ALL emplacements
 //
-router.get("/", (req, res) => {
-  const data = db.prepare(`
-    SELECT * FROM emplacements
-  `).all();
-
-  res.json(data);
+router.get("/", async (req, res) => {
+  try {
+    const data = await db.query(`SELECT * FROM emplacements`);
+    res.json(data.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 //
 // 📍 GET AVAILABLE emplacements (free space)
 //
-router.get("/available", (req, res) => {
-  const data = db.prepare(`
-    SELECT * FROM emplacements
-    WHERE occupancy < capacity
-    ORDER BY occupancy ASC
-  `).all();
-
-  res.json(data);
+router.get("/available", async (req, res) => {
+  try {
+    const data = await db.query(`
+      SELECT * FROM emplacements
+      WHERE occupancy < capacity
+      ORDER BY occupancy ASC
+    `);
+    res.json(data.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 //
 // ➕ CREATE emplacement
 //
-router.post("/", (req, res) => {
-  const { code, zone, aisle, shelf, capacity } = req.body;
+router.post("/", async (req, res) => {
+  const { code, zoneType, subZone, isAccessible, capacity } = req.body;
 
   try {
-    const result = db.prepare(`
-      INSERT INTO emplacements (code, zone, aisle, shelf, capacity)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(code, zone, aisle, shelf, capacity);
+    const result = await db.query(`
+      INSERT INTO emplacements (code, "zoneType", "subZone", "isAccessible", capacity)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id
+    `, [code, zoneType, subZone, isAccessible, capacity]);
 
     res.json({
       message: "Emplacement created",
-      id: result.lastInsertRowid
+      id: result.rows[0].id
     });
-
   } catch (err) {
     res.status(400).json({
       error: "Code already exists or invalid data"
@@ -54,27 +60,34 @@ router.post("/", (req, res) => {
 //
 // ✏️ UPDATE emplacement
 //
-router.patch("/:id", (req, res) => {
-  const { zone, aisle, shelf, capacity } = req.body;
+router.patch("/:id", async (req, res) => {
+  const { zoneType, subZone, isAccessible, capacity } = req.body;
 
-  db.prepare(`
-    UPDATE emplacements
-    SET zone = ?, aisle = ?, shelf = ?, capacity = ?
-    WHERE id = ?
-  `).run(zone, aisle, shelf, capacity, req.params.id);
+  try {
+    await db.query(`
+      UPDATE emplacements
+      SET "zoneType" = $1, "subZone" = $2, "isAccessible" = $3, capacity = $4
+      WHERE id = $5
+    `, [zoneType, subZone, isAccessible, capacity, req.params.id]);
 
-  res.json({ message: "Emplacement updated" });
+    res.json({ message: "Emplacement updated" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 //
 // ❌ DELETE emplacement
 //
-router.delete("/:id", (req, res) => {
-  db.prepare(`
-    DELETE FROM emplacements WHERE id = ?
-  `).run(req.params.id);
-
-  res.json({ message: "Emplacement deleted" });
+router.delete("/:id", async (req, res) => {
+  try {
+    await db.query(`DELETE FROM emplacements WHERE id = $1`, [req.params.id]);
+    res.json({ message: "Emplacement deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 module.exports = router;
