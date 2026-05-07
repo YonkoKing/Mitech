@@ -8,6 +8,11 @@ function App() {
   const [stats, setStats] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchBy, setSearchBy] = useState("lot");
+  const [isAuthenticated, setIsAuthenticated] = useState(localStorage.getItem("isLoggedIn") === "true");
+  const [loginCode, setLoginCode] = useState("");
+  const savedCode = localStorage.getItem("accessCode") || "";
+
+  const CORRECT_CODE = "2024"; // You can change this code
 
   const [form, setForm] = useState({
     ref: "",
@@ -20,21 +25,44 @@ function App() {
   });
 
   const loadProducts = () => {
-    fetch(`${API_URL}/api/products`)
+    fetch(`${API_URL}/api/products`, {
+      headers: { "x-access-code": savedCode || loginCode }
+    })
       .then(res => res.json())
       .then(data => setProducts(data));
   };
 
   const loadStats = () => {
-    fetch(`${API_URL}/api/stats`)
+    fetch(`${API_URL}/api/stats`, {
+      headers: { "x-access-code": savedCode || loginCode }
+    })
       .then(res => res.json())
       .then(data => setStats(data));
   };
 
   useEffect(() => {
-    loadProducts();
-    loadStats();
-  }, []);
+    if (isAuthenticated) {
+      loadProducts();
+      loadStats();
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (loginCode === CORRECT_CODE) {
+      setIsAuthenticated(true);
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("accessCode", loginCode);
+    } else {
+      alert("Code incorrect! Veuillez réessayer.");
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("accessCode");
+  };
 
   const handleChange = (e) => {
     setForm({
@@ -49,7 +77,8 @@ function App() {
     fetch(`${API_URL}/api/products`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "x-access-code": savedCode || loginCode
       },
       body: JSON.stringify({
         ...form,
@@ -80,7 +109,10 @@ function App() {
   };
 
   const handleDelete = (id) => {
-    fetch(`${API_URL}/api/products/${id}`, { method: "DELETE" })
+    fetch(`${API_URL}/api/products/${id}`, { 
+      method: "DELETE",
+      headers: { "x-access-code": savedCode || loginCode }
+    })
       .then(() => {
         loadProducts();
         loadStats();
@@ -107,12 +139,46 @@ function App() {
     return value.includes(searchQuery.toLowerCase());
   });
 
+  if (!isAuthenticated) {
+    return (
+      <div className="login-container">
+        <div className="login-card">
+          <span className="login-icon">🔒</span>
+          <h1 className="login-title">Accès Restreint</h1>
+          <p className="login-subtitle">Veuillez entrer votre code d'accès pour continuer.</p>
+          
+          <form className="login-form" onSubmit={handleLogin}>
+            <input 
+              type="password" 
+              className="input-field" 
+              placeholder="Code d'accès" 
+              value={loginCode}
+              onChange={(e) => setLoginCode(e.target.value)}
+              autoFocus
+              required
+            />
+            <button type="submit" className="btn-primary" style={{ width: '100%' }}>
+              Se Connecter
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container">
       
       <header className="dashboard-header">
         <span style={{ fontSize: '2.5rem' }}>📦</span>
         <h1 className="dashboard-title">Vue d'ensemble de l'inventaire</h1>
+        <button 
+          onClick={handleLogout} 
+          className="logout-btn" 
+          style={{ marginLeft: 'auto' }}
+        >
+          <span>🚪</span> Déconnexion
+        </button>
       </header>
 
       {/* STATS GRID */}

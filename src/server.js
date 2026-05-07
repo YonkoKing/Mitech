@@ -6,6 +6,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Middleware de sécurité pour Vercel / API
+const ACCESS_CODE = "2024"; 
+
+app.use("/api", (req, res, next) => {
+  const code = req.headers["x-access-code"];
+  if (code === ACCESS_CODE) {
+    next();
+  } else {
+    res.status(401).json({ error: "Accès non autorisé. Code incorrect." });
+  }
+});
+
 app.get("/", (req, res) => {
   res.json({ message: "Stock API is running 🚀" });
 });
